@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "P7ddsPROGl9XabSghLf97nvFlO8zZLyQ3ZxfA6u6ctA=",
+  "Source": "ExcelUploadAPI",
+  "BasePath": "_content/ExcelUploadAPI",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
