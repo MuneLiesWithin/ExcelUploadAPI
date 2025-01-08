@@ -43,7 +43,7 @@ namespace ExcelUploadAPI.Controllers
                         }
 
                         // Save the uploaded file to the specified directory in the correct format
-                        var siteDirectory = @"C:\Users\Administrator\Desktop\Rômulo\Github\HMVPortalVerona\Excel"; // Path to your site directory
+                        var siteDirectory = @"C:\Your\Choice\Bro\"; // Path to your site directory
                         var filePath = Path.Combine(siteDirectory, "Excel2.xlsx");
 
                         // Ensure the directory exists
