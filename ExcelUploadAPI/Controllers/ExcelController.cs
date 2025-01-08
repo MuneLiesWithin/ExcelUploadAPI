@@ -24,43 +24,43 @@ namespace ExcelUploadAPI.Controllers
 
             try
             {
-                // Read the file into a memory stream
-                using (var stream = new MemoryStream())
+                var siteDirectory = @"C:\Users\Administrator\Desktop\Rômulo\Github\HMVPortalVerona\Excel"; // Path to your site directory
+                var filePath = Path.Combine(siteDirectory, "Excel2.xlsx");
+
+                // Ensure the directory exists
+                if (!Directory.Exists(siteDirectory))
                 {
-                    await file.CopyToAsync(stream);
-
-                    // Use EPPlus to process the Excel file
-                    using (var package = new ExcelPackage(stream))
-                    {
-                        var worksheet = package.Workbook.Worksheets[0]; // Get the first worksheet
-                        var columnCount = worksheet.Dimension.End.Column; // Get the number of columns
-
-                        // Get the column headers
-                        var columns = new string[columnCount];
-                        for (int col = 1; col <= columnCount; col++)
-                        {
-                            columns[col - 1] = worksheet.Cells[1, col].Text; // Read the first row as headers
-                        }
-
-                        // Save the uploaded file to the specified directory in the correct format
-                        var siteDirectory = @"C:\Your\Choice\Bro\"; // Path to your site directory
-                        var filePath = Path.Combine(siteDirectory, "Excel2.xlsx");
-
-                        // Ensure the directory exists
-                        if (!Directory.Exists(siteDirectory))
-                        {
-                            Directory.CreateDirectory(siteDirectory);
-                        }
-
-                        // Save the file to disk in .xlsx format
-                        using (var fileStream = new FileStream(filePath, FileMode.Create))
-                        {
-                            package.SaveAs(fileStream); // Save as .xlsx using EPPlus
-                        }
-
-                        return Ok("File uploaded and saved successfully.");
-                    }
+                    Directory.CreateDirectory(siteDirectory);
                 }
+
+                // Save the raw file directly to disk
+                //using (var stream = new FileStream(filePath, FileMode.Create))
+                //{
+                //    await file.CopyToAsync(stream);
+                //}
+
+                var stream = file.OpenReadStream();
+
+                // Validate the uploaded file with EPPlus
+                //using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+
+                using (var package = new ExcelPackage(stream))
+                {
+                    var worksheet = package.Workbook.Worksheets[0]; // Get the first worksheet
+                    var columnCount = worksheet.Dimension.End.Column; // Get the number of columns
+
+                    // Get the column headers
+                    var columns = new string[columnCount];
+                    for (int col = 1; col <= columnCount; col++)
+                    {
+                        columns[col - 1] = worksheet.Cells[1, col].Text; // Read the first row as headers
+                    }
+                    //Importer
+                }
+
+
+
+                return Ok("File uploaded and saved successfully.");
             }
             catch (System.Exception ex)
             {
