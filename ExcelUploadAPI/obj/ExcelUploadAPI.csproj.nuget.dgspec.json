@@ -46,9 +46,13 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
-            "EPPlus": {
+            "ClosedXML": {
               "target": "Package",
-              "version": "[7.5.2, )"
+              "version": "[0.104.2, )"
+            },
+            "Microsoft.Data.SqlClient": {
+              "target": "Package",
+              "version": "[5.2.2, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
