@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ClosedXML.Excel;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Data;
 using System.IO;
@@ -14,6 +15,13 @@ namespace ExcelUploadAPI.Controllers
     [ApiController]
     public class ExcelController : ControllerBase
     {
+        private readonly IConfiguration _configuration;
+
+        public ExcelController(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         // POST api/excel/upload
         [HttpPost("upload")]
         public async Task<IActionResult> UploadExcelFile(IFormFile file)
@@ -43,7 +51,7 @@ namespace ExcelUploadAPI.Controllers
                         var firstRow = worksheet.Row(1);
                         foreach (var cell in firstRow.CellsUsed())
                         {
-                            dataTable.Columns.Add(cell.Value.ToString());
+                            dataTable.Columns.Add(cell.Value.ToString()); // Handle null values
                             Console.WriteLine($"Column added: {cell.Value}");
                         }
 
@@ -54,17 +62,25 @@ namespace ExcelUploadAPI.Controllers
                             int columnIndex = 0;
                             foreach (var cell in row.CellsUsed())
                             {
-                                dataRow[columnIndex++] = cell.Value.ToString();
+                                dataRow[columnIndex++] = cell.Value.ToString(); // Handle null values
                             }
                             dataTable.Rows.Add(dataRow);
                         }
 
                         Console.WriteLine($"Total rows added: {dataTable.Rows.Count}");
 
-                        // Implement the importer logic to save dataTable to the database
-                        string connectionString = "YourChoice"; // Replace with your connection string
-                        string tableName = "YourChoice"; // Replace with your table name
-                        ImportToDatabase(dataTable, connectionString, tableName);
+                        // Fetch connection string and table name from configuration
+                        string? connectionString = _configuration.GetConnectionString("DefaultConnection");
+                        string? tableName = _configuration["AppSettings:TableName"];
+
+                        if (string.IsNullOrWhiteSpace(connectionString) || string.IsNullOrWhiteSpace(tableName))
+                        {
+                            Console.WriteLine("Invalid connection string or table name.");
+                            return StatusCode(500, "Invalid configuration settings.");
+                        }
+
+                        // Import data into the database
+                        await Task.Run(() => ImportToDatabase(dataTable, connectionString, tableName));
                     }
                 }
 
@@ -87,20 +103,34 @@ namespace ExcelUploadAPI.Controllers
                     connection.Open();
                     Console.WriteLine("Database connection opened.");
 
-                    // Clear the table before importing new data
-                    var clearTableQuery = $"DELETE FROM {tableName}";
-                    using (var clearCommand = new SqlCommand(clearTableQuery, connection))
+                    // Check if the table exists
+                    var tableExistsQuery = $"IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{tableName}') SELECT 1 ELSE SELECT 0";
+                    bool tableExists;
+
+                    using (var tableExistsCommand = new SqlCommand(tableExistsQuery, connection))
                     {
-                        clearCommand.ExecuteNonQuery();
-                        Console.WriteLine($"Table {tableName} cleared.");
+                        tableExists = (int)tableExistsCommand.ExecuteScalar() == 1;
                     }
 
-                    // Check if the table exists; create it if it doesn't
-                    var createTableQuery = GenerateCreateTableQuery(dataTable, tableName);
-                    using (var createCommand = new SqlCommand(createTableQuery, connection))
+                    if (tableExists)
                     {
-                        createCommand.ExecuteNonQuery();
-                        Console.WriteLine($"Table {tableName} created or verified.");
+                        // Clear the table if it exists
+                        var clearTableQuery = $"DELETE FROM {tableName}";
+                        using (var clearCommand = new SqlCommand(clearTableQuery, connection))
+                        {
+                            clearCommand.ExecuteNonQuery();
+                            Console.WriteLine($"Table {tableName} cleared.");
+                        }
+                    }
+                    else
+                    {
+                        // Create the table if it does not exist
+                        var createTableQuery = GenerateCreateTableQuery(dataTable, tableName);
+                        using (var createCommand = new SqlCommand(createTableQuery, connection))
+                        {
+                            createCommand.ExecuteNonQuery();
+                            Console.WriteLine($"Table {tableName} created.");
+                        }
                     }
 
                     // Use SqlBulkCopy to insert data into the table
@@ -120,14 +150,24 @@ namespace ExcelUploadAPI.Controllers
             }
         }
 
+
         private string GenerateCreateTableQuery(DataTable dataTable, string tableName)
         {
             var query = $"IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{tableName}') BEGIN CREATE TABLE {tableName} (";
 
             foreach (DataColumn column in dataTable.Columns)
             {
-                query += $"[{column.ColumnName}] NVARCHAR(MAX),";
-                Console.WriteLine($"Generating column for SQL table: {column.ColumnName}");
+                // Trim the column name to avoid spaces
+                var columnName = column.ColumnName.Trim();
+
+                // Ensure the column name is valid for SQL
+                if (string.IsNullOrWhiteSpace(columnName))
+                {
+                    throw new Exception("Column name cannot be empty or whitespace.");
+                }
+
+                query += $"[{columnName}] NVARCHAR(MAX),";
+                Console.WriteLine($"Generating column for SQL table: {columnName}");
             }
 
             query = query.TrimEnd(',') + "); END";
