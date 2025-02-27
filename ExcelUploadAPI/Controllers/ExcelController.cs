@@ -63,6 +63,7 @@ namespace ExcelUploadAPI.Controllers
                             foreach (var cell in row.CellsUsed())
                             {
                                 dataRow[columnIndex++] = cell.Value.ToString(); // Handle null values
+                                break;
                             }
                             dataTable.Rows.Add(dataRow);
                         }
